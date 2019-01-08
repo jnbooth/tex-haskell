@@ -1,0 +1,94 @@
+name:                tex
+version:             0.1.0.0
+github:              "jnbooth/tex"
+license:             BSD3
+author:              "Joshua Booth"
+maintainer:          "joshua.n.booth@gmail.com"
+copyright:           "2018 Joshua Booth"
+
+extra-source-files:
+- README.md
+
+default-extensions:
+- LambdaCase
+- MonadComprehensions
+- MultiWayIf
+- NamedFieldPuns
+- NoImplicitPrelude
+- OverloadedStrings
+- ParallelListComp
+- RecordWildCards
+- ScopedTypeVariables
+- TupleSections
+- TypeFamilies
+- UnicodeSyntax
+- ViewPatterns
+
+# Metadata used when publishing your package
+# synopsis:            Short description of your package
+# category:            Web
+
+# To avoid duplicated efforts in documentation and dealing with the
+# complications of embedding Haddock markup inside cabal files, it is
+# common to point users to the README.md file.
+description:         Please see the README on GitHub at <https://github.com/githubuser/tex#readme>
+
+dependencies:
+- base >= 4.7 && < 5
+- aeson
+- attoparsec
+- classy-prelude
+- conduit
+- containers
+- dotenv
+- focus
+- html-conduit
+- http-api-data
+- http-conduit
+- monad-logger
+- monad-parallel
+- multimap
+- network
+- path-pieces
+- persistent
+- persistent-postgresql
+- persistent-template
+- resource-pool
+- resourcet
+- stm-containers
+- text
+- text-icu
+- transformers
+- unordered-containers
+- xml-conduit
+
+library:
+  source-dirs: 
+    - src
+    - src/response
+  ghc-options:
+    - -Wall
+    - -fno-warn-type-defaults
+
+executables:
+  tex-exe:
+    main:                Main.hs
+    source-dirs:         app
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    - -Wall
+    dependencies:
+    - tex
+
+tests:
+  tex-test:
+    main:                Spec.hs
+    source-dirs:         test
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - tex
