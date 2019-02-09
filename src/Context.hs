@@ -9,8 +9,7 @@ import Data.Time.Clock.System (SystemTime)
 import Env (Env)
 
 data Context = Context
-    { env     :: !Env
-    , channel :: !Text
+    { channel :: !Text
     , host    :: !Text
     , nick    :: !Text
     , user    :: !Text

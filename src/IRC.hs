@@ -53,7 +53,7 @@ tryReply = reply . fromMaybe "I'm sorry, I couldn't find anything."
 
 request :: Text -> IRC XML.Cursor
 request url = XML.fromDocument <$> do
-    web <- Reader.asks $ Env.web . Context.env
+    web <- lift $ Reader.asks Env.web
     request <- liftIO . HTTP.parseRequest $ unpack url
     Conduit.runResourceT $ do
         response <- HTTP.http request web
