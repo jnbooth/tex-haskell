@@ -1,10 +1,10 @@
-name:                tex
+name:                tex-haskell
 version:             0.1.0.0
-github:              "jnbooth/tex"
+github:              "jnbooth/tex-haskell"
 license:             BSD3
 author:              "Joshua Booth"
 maintainer:          "joshua.n.booth@gmail.com"
-copyright:           "2018 Joshua Booth"
+copyright:           "2019 Joshua Booth"
 
 extra-source-files:
 - README.md
@@ -31,59 +31,65 @@ default-extensions:
 # To avoid duplicated efforts in documentation and dealing with the
 # complications of embedding Haddock markup inside cabal files, it is
 # common to point users to the README.md file.
-description:         Please see the README on GitHub at <https://github.com/githubuser/tex#readme>
+description:         Please see the README on GitHub at <https://github.com/githubuser/tex-haskell#readme>
 
 dependencies:
 - base >= 4.7 && < 5
-- aeson
-- attoparsec
 - classy-prelude
 - conduit
-- containers
 - dotenv
-- focus
+- forkable-monad
 - html-conduit
-- http-api-data
 - http-conduit
-- monad-logger
-- monad-parallel
-- multimap
 - network
-- path-pieces
-- persistent
-- persistent-postgresql
-- persistent-template
-- resource-pool
-- resourcet
-- stm-containers
+- postgresql-simple
 - text
 - text-icu
+- time
 - transformers
-- unordered-containers
 - xml-conduit
+- unordered-containers
 
 library:
-  source-dirs: 
-    - src
-    - src/response
-  ghc-options:
-    - -Wall
-    - -fno-warn-type-defaults
+  source-dirs: src
+  when:
+  - condition: (flag(dev)) || (flag(library-only))
+    then:
+      ghc-options:
+      - -Wall
+      - -Wincomplete-uni-patterns
+      - -fwarn-tabs
+      - -O0
+      - -fwarn-incomplete-patterns
+      - -fwarn-incomplete-uni-patterns
+      - -fno-warn-orphans
+      - -fno-warn-type-defaults
+      # - +RTS -xc
+      cpp-options: -DDEVELOPMENT
+    else:
+      ghc-options:
+      - -Wall
+      - -Wincomplete-uni-patterns
+      - -fwarn-tabs
+      - -O2
+      - -fwarn-incomplete-patterns
+      - -fwarn-incomplete-uni-patterns
+      - -fno-warn-orphans
+      - -fno-warn-type-defaults
 
 executables:
-  tex-exe:
+  tex-haskell-exe:
     main:                Main.hs
     source-dirs:         app
     ghc-options:
     - -threaded
     - -rtsopts
     - -with-rtsopts=-N
-    - -Wall
     dependencies:
-    - tex
+    - tex-haskell
 
 tests:
-  tex-test:
+  tex-haskell-test:
     main:                Spec.hs
     source-dirs:         test
     ghc-options:
@@ -91,4 +97,4 @@ tests:
     - -rtsopts
     - -with-rtsopts=-N
     dependencies:
-    - tex
+    - tex-haskell

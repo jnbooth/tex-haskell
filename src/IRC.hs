@@ -1,89 +1,60 @@
 module IRC 
-  ( Socketed(..)
-  , Bot(..), BotIO
-  , Context(..), IRC
-  , silent, send, ctcp, reply, tryReply
-  , get
+  ( IRC
+  , silent, send
+  , ctcp
+  , reply, tryReply
+  , request
   ) where
 
-import ClassyPrelude hiding (handle)
+import ClassyPrelude
 
 import qualified Conduit
+import Conduit ((.|))
+import qualified Data.Text.Encoding as Encoding
 import qualified Text.HTML.DOM as DOM
-import qualified Data.Maybe as Maybe
+import Network.Socket (Socket)
 import qualified Network.HTTP.Conduit as HTTP
 import qualified System.IO as IO
 import qualified Control.Monad.Trans.Reader as Reader
-import qualified STMContainers.Map as Stm
-import qualified Database.Persist.Postgresql as Sql
+import Control.Monad.Trans.Reader (ReaderT)
 import qualified Data.Text as Text
 import qualified Text.XML.Cursor as XML
 
-import Conduit ((.|))
-import Data.Pool (Pool)
+import qualified Context
+import Context (Context)
+import qualified Env
+import Env (ENV, Env)
 
-import Persist
+type IRC = ReaderT Context ENV
 
-class Socketed m where
-  getSocket :: m -> Handle
+silent :: Text -> Text -> IRC ()
+silent command message = lift $ Env.silent command message
 
-data Bot = Bot 
-    { botSocket :: !Handle
-    , botWeb    :: !HTTP.Manager
-    , botPool   :: !(Pool Sql.SqlBackend)
-    , botNick   :: !Text
-    , botOwner  :: !(Maybe Text)
-    , botUsers  :: !(Stm.Map Text User)
-    }
-instance Socketed Bot where 
-  getSocket = botSocket
+send :: Text -> Text -> IRC ()
+send command message = lift $ Env.send command message
 
-type BotIO = Reader.ReaderT Bot IO
-
-data Context = Context
-    { ctxBot     :: !Bot
-    , ctxChannel :: !Text
-    , ctxUser    :: !User
-    }
-instance Socketed Context where 
-  getSocket = getSocket . ctxBot
-
-type IRC = Reader.ReaderT Context BotIO
-
-silent :: ∀ a m. (MonadIO m, Socketed a) => Text -> Text -> Reader.ReaderT a m ()
-silent command message = do
-    socket <- Reader.asks getSocket
-    liftIO . IO.hPutStrLn socket . unpack $ command ++ " " ++ message
-
-send :: ∀ a m. (MonadIO m, Socketed a) => Text -> Text -> Reader.ReaderT a m ()
-send command message = do
-    silent command message
-    putStrLn $ "\x1b[32m> " ++ command ++ " " ++ message ++ "\x1b[0m"
-
-respond :: Text -> Text -> IRC ()
-respond command message = do
-    Context{..} <- Reader.ask
-    let User{..} = ctxUser
-    case Text.head ctxChannel of
-        '#' -> send "PRIVMSG" $ ctxChannel ++ " " ++ message
-        _   -> send command $ userNick ++ " " ++ message
+respond :: Text -> IRC ()
+respond message = do
+    ctx <- Reader.ask
+    case Text.head $ Context.channel ctx of
+      '#' -> send "PRIVMSG" $ Context.channel ctx ++ " " ++ message
+      _   -> send "NOTICE"  $ Context.nick ctx ++ " " ++ message
 
 ctcp :: Text -> Text -> IRC ()
-ctcp command message = 
-    respond "PRIVMSG" $ "\SOH" ++ command ++ " " ++ message ++ "\SOH"
+ctcp command message = respond $ "\SOH" ++ command ++ " " ++ message ++ "\SOH"
 
 reply :: Text -> IRC ()
 reply s = do
-    userNick <- Reader.asks $ userNick . ctxUser
-    respond "NOTICE" $ userNick ++ ": " ++ s
+    nick <- Reader.asks Context.nick
+    respond $ nick ++ ": " ++ s
 
 tryReply :: Maybe Text -> IRC ()
-tryReply = reply . Maybe.fromMaybe "I'm sorry, I couldn't find anything."
+tryReply = reply . fromMaybe "I'm sorry, I couldn't find anything."
 
-get :: Text -> IRC XML.Cursor
-get url = XML.fromDocument <$> do
-    botWeb <- Reader.asks $ botWeb . ctxBot
+request :: Text -> IRC XML.Cursor
+request url = XML.fromDocument <$> do
+    web <- Reader.asks $ Env.web . Context.env
     request <- liftIO . HTTP.parseRequest $ unpack url
     Conduit.runResourceT $ do
-        response <- HTTP.http request botWeb
+        response <- HTTP.http request web
         Conduit.runConduit $ HTTP.responseBody response .| DOM.sinkDoc

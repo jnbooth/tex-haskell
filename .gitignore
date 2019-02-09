@@ -1,5 +1,5 @@
 .stack-work/
-tex.cabal
+*.cabal
 *~
 *.env
 .DS_Store
