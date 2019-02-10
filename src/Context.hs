@@ -2,11 +2,8 @@ module Context (Context(..), new) where
 
 import ClassyPrelude
 
-import qualified Data.Text as Text
 import qualified Data.Time.Clock.System as Time
 import Data.Time.Clock.System (SystemTime)
-
-import Env (Env)
 
 data Context = Context
     { channel :: !Text
@@ -16,10 +13,10 @@ data Context = Context
     , time    :: !SystemTime
     }
 
-new :: Env -> Text -> Text -> IO Context
-new env channel userstuff = do
+new :: Text -> Text -> IO Context
+new channel userstuff = do
     time <- Time.getSystemTime
     let host = "TODO"
     let nick = userstuff
-    let user = Text.toLower nick
+    let user = toLower nick
     return Context{..}

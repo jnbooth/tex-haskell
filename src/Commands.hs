@@ -6,9 +6,9 @@ import qualified Data.HashMap.Strict as HashMap
 import Data.HashMap.Strict (HashMap)
 
 import qualified Command
-import IRC (IRC)
+import Command (Command)
 
-commands :: HashMap Text (Text -> IRC (Maybe Text))
+commands :: HashMap Text Command
 commands = HashMap.fromList $ Command.unfold =<<
     [
 

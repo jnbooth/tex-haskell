@@ -10,5 +10,5 @@ data Command = Command
     , run   :: !(Text -> IRC (Maybe Text))
     }
 
-unfold :: Command -> [(Text, Text -> IRC (Maybe Text))]
-unfold Command{..} = (, run) <$> cmds
+unfold :: Command -> [(Text, Command)]
+unfold x = (, x) <$> cmds x

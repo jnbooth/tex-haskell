@@ -45,6 +45,6 @@ instance {-# OVERLAPPING #-} (Arg a, Monad m) => Run m o (a -> m o) where
 
 -- With more than one argument
 instance (Arg a, Monad m, Run m o f) => Run m o (a -> f) where
-    run f (parse -> Just (_::a, "")) = return Nothing
+    run _ (parse -> Just (_::a, "")) = return Nothing
     run f (parse -> Just (x, xs))    = run (f x) xs
     run _ _                          = return Nothing
