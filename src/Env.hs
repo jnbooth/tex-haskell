@@ -11,6 +11,7 @@ import qualified System.Environment as System
 
 data Env = Env
     { handle :: !Handle
+    , out    :: !(Chan (Text, Bool))
     , web    :: !HTTP.Manager
     , sql    :: !SQL.Connection
 
@@ -41,6 +42,7 @@ new = do
     socket <- connect (unpack server) 6660
     handle <- Net.socketToHandle socket ReadWriteMode
     IO.hSetBuffering handle IO.NoBuffering
+    out    <- newChan
     web    <- HTTP.newManager HTTP.tlsManagerSettings
     dbUrl  <- getEnv "DATABASE_URL"
     sql    <- SQL.connectPostgreSQL $ encodeUtf8 dbUrl
@@ -48,12 +50,12 @@ new = do
     owner  <- getEnv "OWNER"
     return Env{..}
 
-silent :: Text -> Text -> ENV ()
-silent command message = do
-    handle <- asks Env.handle
-    liftIO . IO.hPutStrLn handle . unpack $ command ++ " " ++ message
+output :: Bool -> Text -> Text -> ENV ()
+output vis command message = do
+    out <- asks Env.out
+    writeChan out (command ++ " " ++ message, vis)
 
+silent :: Text -> Text -> ENV ()
+silent = output False
 send :: Text -> Text -> ENV ()
-send command message = do
-    silent command message
-    putStrLn $ "\x1b[32m> " ++ command ++ " " ++ message ++ "\x1b[0m"
+send = output True

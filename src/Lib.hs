@@ -12,6 +12,7 @@ import qualified Commands
 import qualified Context
 import qualified Env
 import Env (ENV)
+import qualified Failure
 import qualified IRC
 import IRC (IRC)
 import qualified Util
@@ -23,10 +24,18 @@ main = do
 
 run :: ENV ()
 run = do
+    void . Concurrent.forkIO $ forever flush
     nick <- asks Env.nick
     Env.silent "NICK" nick
     Env.silent "USER" $ nick ++ " * * " ++ nick
     forever listen
+
+flush :: ENV ()
+flush = do
+    env <- ask
+    (msg, vis) <- readChan $ Env.out env
+    liftIO . IO.hPutStrLn (Env.handle env) $ unpack msg
+    when vis . putStrLn $ "\x1b[32m> " ++ msg ++ "\x1b[0m"
 
 listen :: ENV ()
 listen = do
@@ -69,9 +78,22 @@ getCommands s
     rightBracket x = flip take x <$> Text.findIndex (== ']') x
 
 eval :: Text -> IRC ()
-eval s = case lookup command Commands.commands of
-    Nothing  -> return ()
-    Just cmd -> IRC.reply . fromMaybe (Command.usage cmd) =<<
-                Command.run cmd query
-  where
-    (command, query) = Util.breakOn ' ' s
+eval (Util.breakOn ' ' -> (cmd, query)) = case lookup cmd Commands.commands of
+    Nothing      -> return ()
+    Just command -> do
+        res <- Command.run command query
+        case fromMaybe (Left Failure.IncorrectUsage) res of
+            Right msg -> IRC.reply msg
+            Left (Failure.Ambiguous size sample) -> IRC.reply $
+                "Did you mean: " ++ intercalate ", " sample ++ 
+                " (" ++ tshow size ++ " total)"
+            Left Failure.IncorrectUsage -> IRC.reply $
+                "Usage: " ++ cmd ++ " " ++ Command.usage command
+            Left Failure.NoResults -> IRC.reply
+                "I'm sorry, I couldn't find anything."
+            Left Failure.Unauthorized -> do
+                nick <- asks Context.nick
+                putStrLn $ 
+                    "Warning! " ++ nick ++ 
+                    " attempted to use an unauthorized command: " ++ cmd ++ "!"
+            

@@ -1,7 +1,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 
-module Parse (TextWord(..), run) where
+module Parse (TextWord(..), run, noArgs) where
 
 import ClassyPrelude
 
@@ -38,8 +38,13 @@ parse = (second (dropWhile (== ' ')) <$>) . fromText
 class Monad m => Run m o f where
     run :: f -> Text -> m (Maybe o)
 
+-- With no arguments
+noArgs :: ∀ m o. Monad m => o -> Text -> m (Maybe o)
+noArgs x "" = return $ Just x
+noArgs _ _  = return Nothing
+
 -- With one argument
-instance {-# OVERLAPPING #-} (Arg a, Monad m) => Run m o (a -> m o) where
+instance (Arg a, Monad m) => Run m o (a -> m o) where
     run f (parse -> Just (x, "")) = Just <$> f x
     run _ _                       = return Nothing
 
