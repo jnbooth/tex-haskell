@@ -1,7 +1,9 @@
 module Lib (main) where
 
-import ClassyPrelude
+import ClassyPrelude hiding (handle)
 
+import qualified Data.Char as Char
+import qualified Data.CaseInsensitive as CI
 import qualified Control.Concurrent.Forkable as Concurrent
 import qualified Configuration.Dotenv as Dotenv
 import qualified System.IO as IO
@@ -11,69 +13,73 @@ import qualified Command
 import qualified Commands
 import qualified Context
 import qualified Env
-import Env (ENV)
+import Env (ENV, Env(..))
 import qualified Failure
 import qualified IRC
 import IRC (IRC)
 import qualified Util
 
-main :: IO ()
-main = do
+main :: Bool -> IO ()
+main online = do
     void $ Dotenv.loadFile Dotenv.defaultConfig
-    bracket Env.new (IO.hClose . Env.handle) $ runReaderT run
+    bracket env (IO.hClose . Env.handle) $ runReaderT run
+  where
+    env = if online then Env.new else Env.offline
 
 run :: ENV ()
 run = do
-    void . Concurrent.forkIO $ forever flush
-    nick <- asks Env.nick
+    env <- ask
+    void . liftIO . Concurrent.forkIO . forever $ flush env
+    let nick = CI.original $ Env.nick env
     Env.silent "NICK" nick
     Env.silent "USER" $ nick ++ " * * " ++ nick
+    putStrLn "Awaiting input."
     forever listen
 
-flush :: ENV ()
-flush = do
-    env <- ask
-    (msg, vis) <- readChan $ Env.out env
-    liftIO . IO.hPutStrLn (Env.handle env) $ unpack msg
+flush :: Env -> IO ()
+flush Env{handle, out} = do
+    (msg, vis) <- readChan out
+    writable   <- IO.hIsWritable handle
+    when writable . IO.hPutStrLn handle $ unpack msg
     when vis . putStrLn $ "\x1b[32m> " ++ msg ++ "\x1b[0m"
 
 listen :: ENV ()
 listen = do
-    env <- ask
-    let botNick = Env.nick env
-    response <- (pack <$>) . liftIO . IO.hGetLine $ Env.handle env
+    Env{handle, nick} <- ask
+    response <- (pack <$>) . liftIO . IO.hGetLine $ handle
     if | "PING :" `isPrefixOf` response ->
           Env.silent "PONG" $ drop 5 response
-       | loggedOn botNick `isPrefixOf` response -> do
+       | loggedOn (CI.original nick) `isPrefixOf` response -> do
           password <- Env.getEnv "IRC_PASSWORD"
           Env.silent "PRIVMSG" $ "NickServ IDENTIFY " ++ password
           autojoin <- Env.getEnv "AUTOJOIN"
           for_ (Text.split (== ',') autojoin) $ Env.silent "JOIN" . ("#" ++)
        | otherwise -> do
-          let (nick, a)   = Util.breakOn ' ' $ drop 1 response
+          let (user, a)   = Util.breakOn ' ' $ drop 1 response
               (cmd, b)    = Util.breakOn ' ' a
               (chan, msg) = Util.breakOn ' ' b
-              cmds        = getCommands $ drop 1 msg
+              cmds        = (unCtrl <$>) . getCommands $ drop 1 msg
           if | cmd == "PRIVMSG" && not (null cmds) -> do
                   putStrLn $ "\x1b[37m> " ++ response ++ "\x1b[0m"
-                  ctx <- liftIO $ Context.new chan nick
-                  runReaderT (traverse_ (Concurrent.forkIO . eval) cmds) ctx
+                  ctx <- liftIO $ Context.new chan user
+                  runReaderT (for_ cmds $ Concurrent.forkIO . eval) ctx
              | otherwise -> putStrLn response
   where
-    loggedOn nick = ":" ++ nick ++ " MODE " ++ nick
+    loggedOn bot = ":" ++ bot ++ " MODE " ++ bot
+    unCtrl = filter $ not . Char.isControl
 
 getCommands :: Text -> [Text]
 getCommands "" = []
+getCommands (uncons -> Just ('.', s)) = [s]
+getCommands (uncons -> Just ('!', s)) = [s]
 getCommands s
   | '\SOH' `elem` s = [] -- Ignore CTCP
-  | firstChar == '.' || firstChar == '!' = [drop 1 s]
-  | otherwise = filter (not . null) . 
-                catMaybes .
-                (rightBracket <$>) .
-                drop 1 $
-                leftBracket s
+  | otherwise       = filter (not . null) . 
+                      catMaybes .
+                      (rightBracket <$>) .
+                      drop 1 $
+                      leftBracket s
   where
-    firstChar      = Text.head s
     leftBracket    = Text.splitOn "["
     rightBracket x = flip take x <$> Text.findIndex (== ']') x
 
@@ -81,7 +87,7 @@ eval :: Text -> IRC ()
 eval (Util.breakOn ' ' -> (cmd, query)) = case lookup cmd Commands.commands of
     Nothing      -> return ()
     Just command -> do
-        res <- Command.run command query
+        res <- Command.run command $ Text.strip query
         case fromMaybe (Left Failure.IncorrectUsage) res of
             Right msg -> IRC.reply msg
             Left (Failure.Ambiguous size sample) -> IRC.reply $
@@ -92,7 +98,7 @@ eval (Util.breakOn ' ' -> (cmd, query)) = case lookup cmd Commands.commands of
             Left Failure.NoResults -> IRC.reply
                 "I'm sorry, I couldn't find anything."
             Left Failure.Unauthorized -> do
-                nick <- asks Context.nick
+                nick <- CI.original <$> asks Context.nick
                 putStrLn $ 
                     "Warning! " ++ nick ++ 
                     " attempted to use an unauthorized command: " ++ cmd ++ "!"

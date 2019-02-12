@@ -1,8 +1,12 @@
 module Main where
 
-import qualified Lib
-
 import ClassyPrelude
 
+import qualified System.Environment as SysEnv
+
+import qualified Lib
+
 main :: IO ()
-main = Lib.main
+main = do
+    args <- SysEnv.getArgs
+    Lib.main $ "-o" `notElem` args

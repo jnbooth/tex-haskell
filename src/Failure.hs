@@ -1,4 +1,4 @@
-module Failure (Failure(..)) where
+module Failure (Failure(..), nonEmpty) where
 
 import ClassyPrelude
 
@@ -7,3 +7,9 @@ data Failure
     | IncorrectUsage
     | NoResults
     | Unauthorized
+  deriving (Eq, Ord, Show, Read)
+
+nonEmpty :: ∀ o. MonoFoldable o => o -> Either Failure o
+nonEmpty x
+  | null x    = Left NoResults
+  | otherwise = Right x

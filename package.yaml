@@ -10,19 +10,42 @@ extra-source-files:
 - README.md
 
 default-extensions:
+# Package-specific
+- NoImplicitPrelude
+# Removing artificial limitations
+- ConstraintKinds
+- EmptyCase
+- FlexibleContexts
+- FlexibleInstances
+- InstanceSigs
+- MultiParamTypeClasses
+# Syntactic sugar
 - LambdaCase
-- MonadComprehensions
 - MultiWayIf
 - NamedFieldPuns
-- NoImplicitPrelude
-- OverloadedStrings
-- ParallelListComp
-- RecordWildCards
-- ScopedTypeVariables
 - TupleSections
-- TypeFamilies
 - UnicodeSyntax
 - ViewPatterns
+# More powerful deriving
+- DeriveFoldable
+- DeriveFunctor
+- DeriveGeneric
+- DeriveLift
+- DeriveTraversable
+- DerivingStrategies
+- GeneralizedNewtypeDeriving
+- StandaloneDeriving
+- ScopedTypeVariables
+# Unlikely to be used, but no drawbacks
+- BangPatterns
+- DefaultSignatures
+- KindSignatures
+- PatternSynonyms
+- RankNTypes
+- TypeApplications
+- TypeOperators
+# Unfortunate necessities
+- OverloadedStrings
 
 # Metadata used when publishing your package
 # synopsis:            Short description of your package
@@ -35,14 +58,20 @@ description:         Please see the README on GitHub at <https://github.com/gith
 
 dependencies:
 - base >= 4.7 && < 5
+- aeson
+- case-insensitive
 - classy-prelude
 - conduit
+- containers
 - dotenv
 - forkable-monad
 - html-conduit
 - http-conduit
+- mtl
+- multimap
 - network
 - postgresql-simple
+- random
 - text
 - text-icu
 - time
@@ -53,10 +82,13 @@ dependencies:
 library:
   source-dirs: src
   ghc-options:
+    - -O2
     - -Wall
     - -Wincomplete-uni-patterns
+    - -Wcompat
+    - -Wincomplete-record-updates
+    - -Wredundant-constraints
     - -fwarn-tabs
-    - -O2
     - -fwarn-incomplete-patterns
     - -fwarn-incomplete-uni-patterns
     - -fno-warn-orphans

@@ -1,4 +1,4 @@
-module Command (Command(..), abbrev, unfold) where
+module Command (Command(..), Outcome, abbrev, unfold) where
 
 import ClassyPrelude
 

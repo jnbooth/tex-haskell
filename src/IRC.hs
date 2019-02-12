@@ -3,20 +3,23 @@ module IRC
   , silent, send
   , ctcp
   , reply, tryReply
-  , request
+  , request, json
+  , bold, italic
   ) where
 
 import ClassyPrelude
 
+import qualified Data.Aeson as Aeson
+import qualified Data.CaseInsensitive as CI
 import qualified Conduit
 import Conduit ((.|))
 import qualified Text.HTML.DOM as DOM
 import qualified Network.HTTP.Conduit as HTTP
-import qualified Data.Text as Text
+import qualified Network.HTTP.Simple as HTTP
 import qualified Text.XML.Cursor as XML
 
 import qualified Context
-import Context (Context)
+import Context (Context(..))
 import qualified Env
 import Env (ENV)
 
@@ -30,26 +33,37 @@ send command message = lift $ Env.send command message
 
 respond :: Text -> IRC ()
 respond message = do
-    ctx <- ask
-    case Text.head $ Context.channel ctx of
-      '#' -> send "PRIVMSG" $ Context.channel ctx ++ " " ++ message
-      _   -> send "NOTICE"  $ Context.nick ctx ++ " " ++ message
+    target <- asks Context.target
+    send "PRIVMSG" $ target ++ " " ++ message
 
 ctcp :: Text -> Text -> IRC ()
 ctcp command message = respond $ "\SOH" ++ command ++ " " ++ message ++ "\SOH"
 
 reply :: Text -> IRC ()
 reply s = do
-    nick <- asks Context.nick
+    nick <- CI.original <$> asks Context.nick
     respond $ nick ++ ": " ++ s
 
 tryReply :: Maybe Text -> IRC ()
 tryReply = reply . fromMaybe "I'm sorry, I couldn't find anything."
+
+json :: Text -> IRC Aeson.Value
+json url = do
+    web <- lift $ asks Env.web
+    req <- liftIO . HTTP.parseRequest $ unpack url
+    res <- HTTP.httpJSON $ HTTP.setRequestManager web req
+    return $ HTTP.getResponseBody res
 
 request :: Text -> IRC XML.Cursor
 request url = XML.fromDocument <$> do
     web <- lift $ asks Env.web
     req <- liftIO . HTTP.parseRequest $ unpack url
     Conduit.runResourceT $ do
-        response <- HTTP.http req web
-        Conduit.runConduit $ HTTP.responseBody response .| DOM.sinkDoc
+        res <- HTTP.http req web
+        Conduit.runConduit $ HTTP.responseBody res .| DOM.sinkDoc
+
+bold :: Text -> Text
+bold = ("\x02" ++) . (++ "\x02")
+
+italic :: Text -> Text
+italic = ("\x1d" ++ ) . (++ "\x1d")
