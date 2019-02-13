@@ -1,7 +1,7 @@
 module IRC 
   ( IRC
   , silent, send
-  , ctcp
+  , action
   , reply, tryReply
   , request, json
   , bold, italic
@@ -36,13 +36,16 @@ respond message = do
     target <- asks Context.target
     send "PRIVMSG" $ target ++ " " ++ message
 
-ctcp :: Text -> Text -> IRC ()
-ctcp command message = respond $ "\SOH" ++ command ++ " " ++ message ++ "\SOH"
-
 reply :: Text -> IRC ()
 reply s = do
     nick <- CI.original <$> asks Context.nick
     respond $ nick ++ ": " ++ s
+
+ctcp :: Text -> Text -> IRC ()
+ctcp command message = respond $ "\SOH" ++ command ++ " " ++ message ++ "\SOH"
+
+action :: Text -> IRC ()
+action = ctcp "ACTION"
 
 tryReply :: Maybe Text -> IRC ()
 tryReply = reply . fromMaybe "I'm sorry, I couldn't find anything."

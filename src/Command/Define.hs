@@ -1,4 +1,4 @@
-module Command.Define where
+module Command.Define (command) where
 
 import ClassyPrelude
 
@@ -32,9 +32,8 @@ search s = do
     app_key <- Env.getEnv "DICTIONARY_KEY"
     page    <- IRC.json $ url ++ s ++ "?key=" ++ app_key
     let defs = parse page
-    return $
-      if | MultiMap.null defs -> Left Failure.NoResults
-         | otherwise          -> Right $ fmtDefs defs
+    if | MultiMap.null defs -> return $ Left Failure.NoResults
+       | otherwise          -> Right <$> IRC.reply (fmtDefs defs)
 
 parse :: Aeson.Value -> MultiMap Text Text
 parse (Aeson.Array nodes) = snd . foldl' acc ("other", MultiMap.empty) $

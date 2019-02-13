@@ -1,4 +1,4 @@
-module Command.Choose where
+module Command.Choose (command) where
 
 import ClassyPrelude
 
@@ -7,6 +7,7 @@ import qualified System.Random as Random
 import qualified Data.Text as Text
 
 import Command (Command(..), Outcome, abbrev)
+import qualified IRC
 import IRC (IRC)
 import qualified Parse
 
@@ -18,8 +19,8 @@ command = Command
     }
 
 choose :: Text -> IRC Outcome
-choose s = case filter (not . null) $ Text.split (== ',') s of
-  []    -> return $ Right "I choose nothing."
-  [opt] -> return $ Right opt
-  opts  -> Right . (opts !!) . fst . Random.randomR (0, length opts) <$> 
-           liftIO Random.newStdGen
+choose s = Right <$> case filter (not . null) $ Text.split (== ',') s of
+    []    -> IRC.reply "I choose nothing."
+    [opt] -> IRC.reply opt
+    opts  -> IRC.reply . (opts !!) . fst . Random.randomR (0, length opts) =<<
+             liftIO Random.newStdGen

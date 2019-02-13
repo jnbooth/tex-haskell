@@ -37,8 +37,8 @@ class Monad m => Run m r f where
     run :: f -> Text -> m (Maybe r)
 
 -- With no arguments
-noArgs :: ∀ m r. Monad m => r -> Text -> m (Maybe r)
-noArgs x "" = return $ Just x
+noArgs :: ∀ m r. Monad m => m r -> Text -> m (Maybe r)
+noArgs x "" = Just <$> x
 noArgs _ _  = return Nothing
 
 -- With one argument

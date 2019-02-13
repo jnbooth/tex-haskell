@@ -1,6 +1,6 @@
 module Env 
   ( getEnv
-  , Env(..), new, offline
+  , Env(..), new, offline, close
   , ENV, silent, send
   ) where
 
@@ -23,7 +23,13 @@ data Env = Env
 
     , nick   :: !(CI Text)
     , owner  :: !(CI Text)
+    , tells  :: !(TVar (HashSet (CI Text)))
     }
+
+close :: Env -> IO ()
+close Env{handle, sql} = do
+    IO.hClose handle
+    SQL.close sql
 
 type ENV = ReaderT Env IO
 
@@ -50,7 +56,8 @@ build handle = do
     sql   <- SQL.connectPostgreSQL $ encodeUtf8 dbUrl
     nick  <- CI.mk <$> getEnv "IRC_NICK"
     owner <- CI.mk <$> getEnv "OWNER"
-    return Env{handle, out, web, sql, nick, owner}
+    tells <- newTVarIO mempty
+    return Env{handle, out, web, sql, nick, owner, tells}
 
 new :: IO Env
 new = do
@@ -67,7 +74,9 @@ output :: Bool -> Text -> Text -> ENV ()
 output vis command message = do
     out <- asks Env.out
     writeChan out (command ++ " " ++ message, vis)
+
 silent :: Text -> Text -> ENV ()
 silent = output False
+
 send :: Text -> Text -> ENV ()
 send = output True

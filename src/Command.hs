@@ -7,7 +7,7 @@ import qualified Data.Text as Text
 import Failure (Failure)
 import IRC (IRC)
 
-type Outcome = Either Failure Text
+type Outcome = Either Failure ()
 
 abbrev :: Text -> [Text]
 abbrev = drop 1 . Text.inits

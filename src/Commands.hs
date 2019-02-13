@@ -10,11 +10,13 @@ import Command (Command)
 
 import qualified Command.Choose
 import qualified Command.Define
+import qualified Command.Tell
 import qualified Command.Zyn
 
 commands :: HashMap Text Command
 commands = HashMap.fromList $ Command.unfold =<<
     [ Command.Choose.command
     , Command.Define.command
+    , Command.Tell.command
     , Command.Zyn.command
     ]
